@@ -2,33 +2,52 @@ package message
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 
+	"code.google.com/p/gogoprotobuf/proto"
 	"github.com/xiangli-cmu/message/example"
 )
 
-// a simple test that encodes a pb message into a buffer
-// and decode a pb message out of the buffer.
-// If the two pb messages are equal, the test will be passed.
+// a simple test that encodes a message into a buffer
+// and decodes a message out of the buffer.
 func TestEncoderAndDecoder(t *testing.T) {
 	buf := new(bytes.Buffer)
 
 	inPb := &example.A{
 		Description: "hello world!",
 		Number:      1,
-		Id:          []byte{0x00, 0x01, 0x02, 0x03},
+		Id:          []byte{0x00},
+	}
+
+	bytes, err := proto.Marshal(inPb)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := NewMessage(0, bytes)
+
+	e := NewMsgEncoder(buf)
+	e.Encode(msg)
+
+	outMsg := NewEmptyMessage()
+
+	d := NewMsgDecoder(buf)
+	d.Decode(outMsg)
+
+	if !reflect.DeepEqual(msg, outMsg) {
+		t.Fatal("Messages are not equal!")
 	}
 
 	outPb := new(example.A)
 
-	e := NewPbEecoder(buf)
-	e.Encode(inPb)
+	proto.Unmarshal(outMsg.Bytes(), outPb)
 
-	d := NewPbDecoder(buf)
-	d.Decode(outPb)
-
-	if reflect.DeepEqual(outPb, inPb) {
-		t.Fatal("Not equal!")
+	if !reflect.DeepEqual(outPb, inPb) {
+		fmt.Println(outPb.GetId())
+		fmt.Println(inPb.GetId())
+		t.Fatal("Protos are not equal!")
 	}
 }

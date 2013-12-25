@@ -1,38 +1,35 @@
 package message
 
 import (
+	"bufio"
 	"encoding/binary"
 	"io"
-
-	"code.google.com/p/gogoprotobuf/proto"
 )
 
-type PbEncoder struct {
-	w   io.Writer
-	buf *proto.Buffer
+type MsgEncoder struct {
+	bw *bufio.Writer
 }
 
-func NewPbEecoder(w io.Writer) *PbEncoder {
-	return &PbEncoder{
-		w:   w,
-		buf: proto.NewBuffer(nil),
+func NewMsgEncoder(w io.Writer) *MsgEncoder {
+	return &MsgEncoder{
+		bw: bufio.NewWriter(w),
 	}
 }
 
-func (e *PbEncoder) Encode(pb proto.Message) (int, error) {
-	err := e.buf.Marshal(pb)
-
-	// TODO: deal with err
+func (me *MsgEncoder) Encode(m *Message) error {
+	err := me.bw.WriteByte(byte(m.msgType))
 	if err != nil {
 		panic(err)
 	}
 
-	size := len(e.buf.Bytes())
-	err = binary.Write(e.w, binary.LittleEndian, uint32(size))
-	// TODO: deal with err
+	size := len(m.bytes)
+	err = binary.Write(me.bw, binary.LittleEndian, uint32(size))
+
 	if err != nil {
 		panic(err)
 	}
 
-	return e.w.Write(e.buf.Bytes())
+	_, err = me.bw.Write(m.bytes)
+
+	return me.bw.Flush()
 }
