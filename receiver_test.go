@@ -45,6 +45,8 @@ func TestNonBlockRecv(t *testing.T) {
 	// start receiver
 	r := NewReceiver(":8001")
 	r.Start()
+	defer r.Stop()
+
 	time.Sleep(1 * time.Second) // wait for server to start
 
 	// should not receive anything
@@ -67,6 +69,7 @@ func TestNonBlockRecv(t *testing.T) {
 func TestSendTrash(t *testing.T) {
 	r := NewReceiver(":8002")
 	r.Start()
+	defer r.Stop()
 	time.Sleep(1 * time.Second)
 
 	conn, err := net.Dial("tcp", ":8002")
@@ -89,6 +92,7 @@ func TestSendTrash(t *testing.T) {
 func TestStopRestart(t *testing.T) {
 	r := NewReceiver(":8003")
 	r.Start()
+	defer r.Stop()
 	time.Sleep(1 * time.Second)
 
 	r.Stop()
@@ -99,6 +103,7 @@ func TestStopRestart(t *testing.T) {
 func TestMultipleStop(t *testing.T) {
 	r := NewReceiver(":8004")
 	r.Start()
+	defer r.Stop()
 	time.Sleep(1 * time.Second)
 
 	for i := 0; i < 5; i++ {
@@ -116,6 +121,7 @@ func TestMultipleMessage(t *testing.T) {
 
 	r := NewReceiver(":8005")
 	r.Start()
+	defer r.Stop()
 	time.Sleep(1 * time.Second)
 
 	// start sending
