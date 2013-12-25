@@ -13,22 +13,22 @@ import (
 )
 
 func TestBlockRecv(t *testing.T) {
-	buf, inPb, msg := inittest(t)
+	buf, inPb, msg := initMsg(t)
 	tmpChan := make(chan *Message)
-	r := NewReceiver("8000")
-	go r.Start()
-	time.Sleep(2 * time.Second)
+	r := NewReceiver(":8000")
+	r.Start()
+	time.Sleep(1 * time.Second)
 
 	// should not receive anything
 	go func() {
 		tmpChan <- r.Recv()
 	}()
 
-Loop:
-	for {
+	var stop bool
+	for !stop {
 		select {
 		case <-time.After(3 * time.Second):
-			break Loop
+			stop = true
 		case <-tmpChan:
 			t.Fatal("Recv should block!")
 		}
@@ -41,12 +41,12 @@ Loop:
 }
 
 func TestNonBlockRecv(t *testing.T) {
-	buf, inPb, msg := inittest(t)
+	buf, inPb, msg := initMsg(t)
 
 	// start receiver
-	r := NewReceiver("8001")
-	go r.Start()
-	time.Sleep(2 * time.Second) // wait for server to start
+	r := NewReceiver(":8001")
+	r.Start()
+	time.Sleep(1 * time.Second) // wait for server to start
 
 	// should not receive anything
 	outMsg := r.GoRecv()
@@ -56,7 +56,7 @@ func TestNonBlockRecv(t *testing.T) {
 
 	// start sending
 	go send("8001", buf, t)
-	time.Sleep(2 * time.Second) // wait for socket to be available
+	time.Sleep(1 * time.Second) // wait for socket to be available
 
 	outMsg = r.GoRecv()
 	if outMsg == nil {
@@ -66,9 +66,9 @@ func TestNonBlockRecv(t *testing.T) {
 }
 
 func TestSendTrash(t *testing.T) {
-	r := NewReceiver("8002")
-	go r.Start()
-	time.Sleep(2 * time.Second)
+	r := NewReceiver(":8002")
+	r.Start()
+	time.Sleep(1 * time.Second)
 
 	conn, err := net.Dial("tcp", ":8002")
 	if err != nil {
@@ -80,7 +80,7 @@ func TestSendTrash(t *testing.T) {
 		t.Log(n)
 		t.Fatal(err)
 	}
-	time.Sleep(2 * time.Second) // wait for GoRecv
+	time.Sleep(1 * time.Second) // wait for GoRecv
 	if r.GoRecv() != nil {
 		t.Fatal("Should not receive anything!")
 	}
@@ -88,15 +88,60 @@ func TestSendTrash(t *testing.T) {
 
 // Test whether receiver can stop and listen again
 func TestStopRestart(t *testing.T) {
-	r := NewReceiver("8003")
-	go r.Start()
-	time.Sleep(2 * time.Second)
+	r := NewReceiver(":8003")
+	r.Start()
+	time.Sleep(1 * time.Second)
 
 	r.Stop()
-	go r.Start()
+	r.Start()
 }
 
-func inittest(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
+// Test multiple stop
+func TestMultipleStop(t *testing.T) {
+	r := NewReceiver(":8004")
+	r.Start()
+	time.Sleep(1 * time.Second)
+
+	for i := 0; i < 5; i++ {
+		r.Stop()
+	}
+	r.Start()
+}
+
+// Test multiple message
+func TestMultipleMessage(t *testing.T) {
+	finish := make(chan bool)
+	buf, inPb, msg := initMsg(t)
+	secBuf, _, _ := initMsg(t)
+	secBuf.WriteTo(buf) // write second message
+
+	r := NewReceiver(":8005")
+	r.Start()
+	time.Sleep(1 * time.Second)
+
+	// start sending
+	go send("8005", buf, t)
+
+	// test correctness
+	go func() {
+		for i := 0; i < 2; i++ {
+			outMsg := r.Recv()
+			compareMsg(msg, outMsg, inPb, t)
+		}
+		finish <- true
+	}()
+	// test timeout
+	for {
+		select {
+		case <-finish:
+			return
+		case <-time.After(5 * time.Second):
+			t.Fatal("Did not receive two messages!")
+		}
+	}
+}
+
+func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
 	buf := new(bytes.Buffer)
 	inPb := &example.A{
 		Description: "hello world!",
