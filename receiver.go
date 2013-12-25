@@ -1,9 +1,11 @@
 package message
 
 import (
-	"github.com/coreos/go-log/log"
 	"io"
 	"net"
+	"time"
+
+	"github.com/coreos/go-log/log"
 )
 
 const (
@@ -12,10 +14,11 @@ const (
 
 // Receiver struct
 type Receiver struct {
-	addr string           // address, in "[ip]:port" format
-	ch   chan *Message    // message channel
-	ln   *net.TCPListener // only TCP now
-	stop chan bool        // stop signal
+	addr         string           // address, in "[ip]:port" format
+	ch           chan *Message    // message channel
+	ln           *net.TCPListener // only TCP now
+	stop         bool             // stop?
+	replyTimeout time.Duration
 }
 
 // Constructor
@@ -23,7 +26,8 @@ func NewReceiver(addr string) *Receiver {
 	r := new(Receiver)
 	r.addr = addr
 	r.ch = make(chan *Message, chanBufSize)
-	r.stop = make(chan bool, 1)
+	// TODO: this should be configurable
+	r.replyTimeout = time.Millisecond * 50
 	return r
 }
 
@@ -42,21 +46,18 @@ func (r *Receiver) GoRecv() *Message {
 	}
 }
 
-// a wrapper for decoder
-func (r *Receiver) decodeWrapper(conn net.Conn) {
-	msg := NewEmptyMessage()
-	d := NewMsgDecoder(conn)
+func (r *Receiver) Start() {
+	go r.start()
+}
 
-	for {
-		err := d.Decode(msg)
-		if err != nil {
-			if err != io.EOF {
-				log.Warning("Decode() error:", err)
-			}
-			return
-		}
-		r.ch <- msg
+// Stop the receiver
+func (r *Receiver) Stop() error {
+	r.stop = true
+	err := r.ln.Close()
+	if err != nil {
+		return err
 	}
+	return nil
 }
 
 // start listen and receive messages
@@ -74,33 +75,57 @@ func (r *Receiver) start() {
 	}
 
 	for {
-		select {
-		case <-r.stop:
-			return
-		default:
-			conn, err := r.ln.AcceptTCP()
-			if err != nil {
-				log.Warning("Accept() error:", err)
-				continue
+		conn, err := r.ln.AcceptTCP()
+		if err != nil {
+			if r.stop {
+				return
 			}
-			go r.decodeWrapper(conn)
+			log.Warning("Accept() error:", err)
+			// TODO: is it a temp error?
+			// need to check!
+			continue
+		}
+		go r.handleConn(conn)
+	}
+}
+
+// handleConn handles incoming connections
+// It decodes a message from TCP stream and sends it to channel
+func (r *Receiver) handleConn(conn net.Conn) {
+	d := NewMsgDecoder(conn)
+	e := NewMsgEncoder(conn)
+
+	for {
+		// create an empty message with reply channel
+		msg := NewEmptyMessage()
+
+		err := d.Decode(msg)
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+			// TODO: handle error
+			log.Warning("handleConn() error:", err)
+			return
+		}
+
+		attached := msg.AttachReplyChan()
+
+		// send received message for processing
+		r.ch <- msg
+
+		if attached {
+			// wait for reply
+			replyMsg := <-msg.reply
+			if replyMsg != nil {
+				if err := e.Encode(replyMsg); err != nil {
+					if err == io.EOF {
+						return
+					}
+					// TODO: handle error
+					log.Warning("handleConn() error:", err)
+				}
+			}
 		}
 	}
-}
-
-func (r *Receiver) Start() {
-	go r.start()
-}
-
-// Stop the receiver
-func (r *Receiver) Stop() error {
-	// I put Close() before send channel,
-	// so channel wont' get the chance to block if
-	// user re-enter Stop() multiple times
-	err := r.ln.Close()
-	if err != nil {
-		return err
-	}
-	r.stop <- true
-	return nil
 }

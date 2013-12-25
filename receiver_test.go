@@ -12,31 +12,30 @@ import (
 	"github.com/go-epaxos/message/example"
 )
 
+// TestBlockRecv tests blocking receive.
+// The Recv() function should block until receive a message from a sender.
 func TestBlockRecv(t *testing.T) {
 	buf, inPb, msg := initMsg(t)
-	tmpChan := make(chan *Message)
+
 	r := NewReceiver(":8000")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
 
-	// should not receive anything
+	c := make(chan *Message)
 	go func() {
-		tmpChan <- r.Recv()
+		c <- r.Recv()
 	}()
 
-	var stop bool
-	for !stop {
-		select {
-		case <-time.After(3 * time.Second):
-			stop = true
-		case <-tmpChan:
-			t.Fatal("Recv should block!")
-		}
+	// before the sender sends the message, Recv() should not return.
+	select {
+	case <-time.After(1 * time.Second):
+	case <-c:
+		t.Fatal("Recv should block until sender sends message")
 	}
 
 	// start sending
 	go send("8000", buf, t)
-	outMsg := <-tmpChan
+	outMsg := <-c
 	compareMsg(msg, outMsg, inPb, t)
 }
 
@@ -46,7 +45,9 @@ func TestNonBlockRecv(t *testing.T) {
 	// start receiver
 	r := NewReceiver(":8001")
 	r.Start()
-	time.Sleep(1 * time.Second) // wait for server to start
+	defer r.Stop()
+
+	time.Sleep(50 * time.Millisecond) // wait for server to start
 
 	// should not receive anything
 	outMsg := r.GoRecv()
@@ -68,7 +69,8 @@ func TestNonBlockRecv(t *testing.T) {
 func TestSendTrash(t *testing.T) {
 	r := NewReceiver(":8002")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
 
 	conn, err := net.Dial("tcp", ":8002")
 	if err != nil {
@@ -80,7 +82,7 @@ func TestSendTrash(t *testing.T) {
 		t.Log(n)
 		t.Fatal(err)
 	}
-	time.Sleep(1 * time.Second) // wait for GoRecv
+	time.Sleep(50 * time.Millisecond) // wait for GoRecv
 	if r.GoRecv() != nil {
 		t.Fatal("Should not receive anything!")
 	}
@@ -90,7 +92,8 @@ func TestSendTrash(t *testing.T) {
 func TestStopRestart(t *testing.T) {
 	r := NewReceiver(":8003")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
 
 	r.Stop()
 	r.Start()
@@ -100,7 +103,8 @@ func TestStopRestart(t *testing.T) {
 func TestMultipleStop(t *testing.T) {
 	r := NewReceiver(":8004")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
 
 	for i := 0; i < 5; i++ {
 		r.Stop()
@@ -117,7 +121,8 @@ func TestMultipleMessage(t *testing.T) {
 
 	r := NewReceiver(":8005")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
 
 	// start sending
 	go send("8005", buf, t)
@@ -139,6 +144,17 @@ func TestMultipleMessage(t *testing.T) {
 			t.Fatal("Did not receive two messages!")
 		}
 	}
+}
+
+// Test send out a message and wait for reply
+func TestSendAndReply(t *testing.T) {
+	addr := ":8006"
+
+	go mockServer(addr)
+
+	// wait for server to start
+	time.Sleep(time.Millisecond * 50)
+	sendAndRecv(addr, t)
 }
 
 func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
@@ -177,6 +193,31 @@ func send(port string, buf *bytes.Buffer, t *testing.T) {
 	}
 }
 
+func sendAndRecv(addr string, t *testing.T) {
+	// Dial
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// send out a message which need reply
+	msg := NewMessage(MsgRequireReply+1, []byte("a send"))
+	e := NewMsgEncoder(conn)
+	err = e.Encode(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// receive reply
+	d := NewMsgDecoder(conn)
+	reply := NewEmptyMessage()
+	d.Decode(reply)
+
+	if string(reply.Bytes()) != "a reply" {
+		t.Fatal("error recv!")
+	}
+}
+
 func compareMsg(msg, outMsg *Message, a interface{}, t *testing.T) {
 	if !reflect.DeepEqual(msg, outMsg) {
 		t.Fatal("Messages are not equal!")
@@ -192,4 +233,12 @@ func compareMsg(msg, outMsg *Message, a interface{}, t *testing.T) {
 	default:
 		t.Fatal("Unknow type")
 	}
+}
+
+func mockServer(addr string) {
+	r := NewReceiver(addr)
+	r.Start()
+
+	msg := r.Recv()
+	msg.reply <- NewMessage(0, []byte("a reply"))
 }

@@ -19,14 +19,14 @@ func NewMsgEncoder(w io.Writer) *MsgEncoder {
 func (me *MsgEncoder) Encode(m *Message) error {
 	err := me.bw.WriteByte(byte(m.msgType))
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	size := len(m.bytes)
 	err = binary.Write(me.bw, binary.LittleEndian, uint32(size))
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	_, err = me.bw.Write(m.bytes)
