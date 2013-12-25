@@ -12,31 +12,30 @@ import (
 	"github.com/go-epaxos/message/example"
 )
 
+// TestBlockRecv tests blocking receive.
+// The Recv() function should block until receive a message from a sender.
 func TestBlockRecv(t *testing.T) {
 	buf, inPb, msg := initMsg(t)
-	tmpChan := make(chan *Message)
+
 	r := NewReceiver(":8000")
 	r.Start()
-	time.Sleep(1 * time.Second)
+	defer r.Stop()
 
-	// should not receive anything
+	c := make(chan *Message)
 	go func() {
-		tmpChan <- r.Recv()
+		c <- r.Recv()
 	}()
 
-	var stop bool
-	for !stop {
-		select {
-		case <-time.After(3 * time.Second):
-			stop = true
-		case <-tmpChan:
-			t.Fatal("Recv should block!")
-		}
+	// before the sender sends the message, Recv() should not return.
+	select {
+	case <-time.After(1 * time.Second):
+	case <-c:
+		t.Fatal("Recv should block until sender sends message")
 	}
 
 	// start sending
 	go send("8000", buf, t)
-	outMsg := <-tmpChan
+	outMsg := <-c
 	compareMsg(msg, outMsg, inPb, t)
 }
 

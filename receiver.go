@@ -15,7 +15,7 @@ type Receiver struct {
 	addr string           // address, in "[ip]:port" format
 	ch   chan *Message    // message channel
 	ln   *net.TCPListener // only TCP now
-	stop chan bool        // stop signal
+	stop bool             // stop?
 }
 
 // Constructor
@@ -23,7 +23,6 @@ func NewReceiver(addr string) *Receiver {
 	r := new(Receiver)
 	r.addr = addr
 	r.ch = make(chan *Message, chanBufSize)
-	r.stop = make(chan bool, 1)
 	return r
 }
 
@@ -48,14 +47,11 @@ func (r *Receiver) Start() {
 
 // Stop the receiver
 func (r *Receiver) Stop() error {
-	// I put Close() before send channel,
-	// so channel wont' get the chance to block if
-	// user re-enter Stop() multiple times
+	r.stop = true
 	err := r.ln.Close()
 	if err != nil {
 		return err
 	}
-	r.stop <- true
 	return nil
 }
 
@@ -74,17 +70,17 @@ func (r *Receiver) start() {
 	}
 
 	for {
-		select {
-		case <-r.stop:
-			return
-		default:
-			conn, err := r.ln.AcceptTCP()
-			if err != nil {
-				log.Warning("Accept() error:", err)
-				continue
+		conn, err := r.ln.AcceptTCP()
+		if err != nil {
+			if r.stop {
+				return
 			}
-			go r.handleConn(conn)
+			log.Warning("Accept() error:", err)
+			// TODO: is it a temp error?
+			// need to check!
+			continue
 		}
+		go r.handleConn(conn)
 	}
 }
 
