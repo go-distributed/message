@@ -118,13 +118,13 @@ func (r *Receiver) handleConn(conn net.Conn) {
 			// wait for reply
 			replyMsg := <-msg.reply
 			if replyMsg != nil {
-				err := e.Encode(replyMsg)
-				if err == io.EOF {
-					return
+				if err := e.Encode(replyMsg); err != nil {
+					if err == io.EOF {
+						return
+					}
+					// TODO: handle error
+					log.Warning("handleConn() error:", err)
 				}
-				// TODO: handle error
-				log.Warning("handleConn() error:", err)
-				return
 			}
 		}
 	}
