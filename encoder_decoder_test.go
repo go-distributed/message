@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"code.google.com/p/gogoprotobuf/proto"
-	"github.com/xiangli-cmu/message/example"
+	"github.com/go-epaxos/message/example"
 )
 
 // a simple test that encodes a message into a buffer
@@ -45,7 +45,7 @@ func TestEncoderAndDecoder(t *testing.T) {
 
 	outPb := new(example.A)
 
-	proto.Unmarshal(bytes, outPb)
+	proto.Unmarshal(outMsg.bytes, outPb)
 
 	if !reflect.DeepEqual(outPb, inPb) {
 		t.Fatal("Protos are not equal!")

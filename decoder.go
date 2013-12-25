@@ -20,7 +20,7 @@ func (md *MsgDecoder) Decode(m *Message) error {
 	msgType, err := md.br.ReadByte()
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	m.msgType = uint8(msgType)
@@ -28,7 +28,7 @@ func (md *MsgDecoder) Decode(m *Message) error {
 	var size uint32
 	err = binary.Read(md.br, binary.LittleEndian, &size)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	m.bytes = make([]byte, size)
