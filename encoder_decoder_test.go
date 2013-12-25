@@ -2,7 +2,6 @@ package message
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -19,6 +18,7 @@ func TestEncoderAndDecoder(t *testing.T) {
 		Description: "hello world!",
 		Number:      1,
 	}
+	// UUID is 16 byte long
 	for i := 0; i < 16; i++ {
 		inPb.Id = append(inPb.Id, byte(i))
 	}
@@ -48,8 +48,6 @@ func TestEncoderAndDecoder(t *testing.T) {
 	proto.Unmarshal(bytes, outPb)
 
 	if !reflect.DeepEqual(outPb, inPb) {
-		fmt.Println(outPb.GetId())
-		fmt.Println(inPb.GetId())
 		t.Fatal("Protos are not equal!")
 	}
 }
