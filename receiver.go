@@ -42,21 +42,21 @@ func (r *Receiver) GoRecv() *Message {
 	}
 }
 
-// a wrapper for decoder
-func (r *Receiver) decodeWrapper(conn net.Conn) {
-	msg := NewEmptyMessage()
-	d := NewMsgDecoder(conn)
+func (r *Receiver) Start() {
+	go r.start()
+}
 
-	for {
-		err := d.Decode(msg)
-		if err != nil {
-			if err != io.EOF {
-				log.Warning("Decode() error:", err)
-			}
-			return
-		}
-		r.ch <- msg
+// Stop the receiver
+func (r *Receiver) Stop() error {
+	// I put Close() before send channel,
+	// so channel wont' get the chance to block if
+	// user re-enter Stop() multiple times
+	err := r.ln.Close()
+	if err != nil {
+		return err
 	}
+	r.stop <- true
+	return nil
 }
 
 // start listen and receive messages
@@ -83,24 +83,25 @@ func (r *Receiver) start() {
 				log.Warning("Accept() error:", err)
 				continue
 			}
-			go r.decodeWrapper(conn)
+			go r.handleConn(conn)
 		}
 	}
 }
 
-func (r *Receiver) Start() {
-	go r.start()
-}
+// handleConn handles incoming connections
+// It decodes a message from TCP stream and sends it to channel
+func (r *Receiver) handleConn(conn net.Conn) {
+	d := NewMsgDecoder(conn)
 
-// Stop the receiver
-func (r *Receiver) Stop() error {
-	// I put Close() before send channel,
-	// so channel wont' get the chance to block if
-	// user re-enter Stop() multiple times
-	err := r.ln.Close()
-	if err != nil {
-		return err
+	for {
+		msg := NewEmptyMessage()
+		err := d.Decode(msg)
+		if err != nil {
+			if err != io.EOF {
+				log.Warning("Decode() error:", err)
+			}
+			return
+		}
+		r.ch <- msg
 	}
-	r.stop <- true
-	return nil
 }
