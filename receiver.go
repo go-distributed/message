@@ -1,9 +1,11 @@
 package message
 
 import (
-	"github.com/coreos/go-log/log"
 	"io"
 	"net"
+	"time"
+
+	"github.com/coreos/go-log/log"
 )
 
 const (
@@ -12,10 +14,11 @@ const (
 
 // Receiver struct
 type Receiver struct {
-	addr string           // address, in "[ip]:port" format
-	ch   chan *Message    // message channel
-	ln   *net.TCPListener // only TCP now
-	stop bool             // stop?
+	addr         string           // address, in "[ip]:port" format
+	ch           chan *Message    // message channel
+	ln           *net.TCPListener // only TCP now
+	stop         bool             // stop?
+	replyTimeout time.Duration
 }
 
 // Constructor
@@ -23,6 +26,8 @@ func NewReceiver(addr string) *Receiver {
 	r := new(Receiver)
 	r.addr = addr
 	r.ch = make(chan *Message, chanBufSize)
+	// TODO: this should be configurable
+	r.replyTimeout = time.Millisecond * 50
 	return r
 }
 
@@ -88,16 +93,36 @@ func (r *Receiver) start() {
 // It decodes a message from TCP stream and sends it to channel
 func (r *Receiver) handleConn(conn net.Conn) {
 	d := NewMsgDecoder(conn)
+	e := NewMsgEncoder(conn)
 
 	for {
+		// create an empty message with reply channel
 		msg := NewEmptyMessage()
+
 		err := d.Decode(msg)
 		if err != nil {
 			if err != io.EOF {
-				log.Warning("Decode() error:", err)
+				log.Warning("handleConn() error:", err)
 			}
 			return
 		}
+
+		attached := msg.AttachReplyChan()
+
+		// send received message for processing
 		r.ch <- msg
+
+		if attached {
+			// wait for reply
+			replyMsg := <-msg.reply
+			if msg.reply != nil {
+				err := e.Encode(replyMsg)
+				if err != io.EOF {
+					log.Warning("handleConn() error:", err)
+				}
+				log.Warning("handleConn() error:", err)
+				return
+			}
+		}
 	}
 }
