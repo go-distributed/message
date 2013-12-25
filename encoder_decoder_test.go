@@ -18,7 +18,9 @@ func TestEncoderAndDecoder(t *testing.T) {
 	inPb := &example.A{
 		Description: "hello world!",
 		Number:      1,
-		Id:          []byte{0x00},
+	}
+	for i := 0; i < 16; i++ {
+		inPb.Id = append(inPb.Id, byte(i))
 	}
 
 	bytes, err := proto.Marshal(inPb)
@@ -43,7 +45,7 @@ func TestEncoderAndDecoder(t *testing.T) {
 
 	outPb := new(example.A)
 
-	proto.Unmarshal(outMsg.Bytes(), outPb)
+	proto.Unmarshal(bytes, outPb)
 
 	if !reflect.DeepEqual(outPb, inPb) {
 		fmt.Println(outPb.GetId())
