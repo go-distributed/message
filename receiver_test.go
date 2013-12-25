@@ -1,6 +1,7 @@
 package message
 
 import (
+	"bufio"
 	"bytes"
 	"net"
 	"reflect"
@@ -64,9 +65,30 @@ func TestNonBlockRecv(t *testing.T) {
 	compareMsg(msg, outMsg, inPb, t)
 }
 
+func TestSendTrash(t *testing.T) {
+	r := NewReceiver("8002")
+	go r.Start()
+	time.Sleep(2 * time.Second)
+
+	conn, err := net.Dial("tcp", ":8002")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := bufio.NewWriter(conn).WriteString("Some evil trash hahaha")
+	if err != nil {
+		t.Log(n)
+		t.Fatal(err)
+	}
+	time.Sleep(2 * time.Second) // wait for GoRecv
+	if r.GoRecv() != nil {
+		t.Fatal("Should not receive anything!")
+	}
+}
+
 // Test whether receiver can stop and listen again
 func TestStopRestart(t *testing.T) {
-	r := NewReceiver("8002")
+	r := NewReceiver("8003")
 	go r.Start()
 	time.Sleep(2 * time.Second)
 

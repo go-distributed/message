@@ -38,8 +38,8 @@ func (r *Receiver) GoRecv() *Message {
 }
 
 func (r *Receiver) Start() {
-	ln, err := net.Listen("tcp", ":"+r.port) // only TCP now
-	r.ln = ln
+	var err error
+	r.ln, err = net.Listen("tcp", ":"+r.port) // only TCP now
 	if err != nil {
 		log.Fatal("Listen() error:", err)
 	}
@@ -50,7 +50,7 @@ Loop:
 		case <-r.stop:
 			break Loop
 		default:
-			conn, err := ln.Accept()
+			conn, err := r.ln.Accept()
 			if err != nil {
 				log.Println("Accept() error:", err)
 				continue
