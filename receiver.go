@@ -101,9 +101,11 @@ func (r *Receiver) handleConn(conn net.Conn) {
 
 		err := d.Decode(msg)
 		if err != nil {
-			if err != io.EOF {
-				log.Warning("handleConn() error:", err)
+			if err == io.EOF {
+				return
 			}
+			// TODO: handle error
+			log.Warning("handleConn() error:", err)
 			return
 		}
 
@@ -115,11 +117,12 @@ func (r *Receiver) handleConn(conn net.Conn) {
 		if attached {
 			// wait for reply
 			replyMsg := <-msg.reply
-			if msg.reply != nil {
+			if replyMsg != nil {
 				err := e.Encode(replyMsg)
-				if err != io.EOF {
-					log.Warning("handleConn() error:", err)
+				if err == io.EOF {
+					return
 				}
+				// TODO: handle error
 				log.Warning("handleConn() error:", err)
 				return
 			}
