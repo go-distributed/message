@@ -14,17 +14,22 @@ const (
 
 // Receiver struct
 type Receiver struct {
-	addr         string           // address, in "[ip]:port" format
-	ch           chan *Message    // message channel
+	localAddr    *net.TCPAddr     // address
 	ln           *net.TCPListener // only TCP now
+	ch           chan *Message    // message channel
 	stop         bool             // stop?
 	replyTimeout time.Duration
 }
 
 // Constructor
-func NewReceiver(addr string) *Receiver {
+func NewReceiver(addrStr string) *Receiver {
 	r := new(Receiver)
-	r.addr = addr
+	addr, err := net.ResolveTCPAddr("tcp", addrStr)
+	if err != nil {
+		log.Error("ResolveTCPAddr() error:", err)
+		return nil
+	}
+	r.localAddr = addr
 	r.ch = make(chan *Message, chanBufSize)
 	// TODO: this should be configurable
 	r.replyTimeout = time.Millisecond * 50
@@ -62,18 +67,12 @@ func (r *Receiver) Stop() error {
 
 // Start listen and receive messages
 func (r *Receiver) Start() {
-	addr, err := net.ResolveTCPAddr("tcp", r.addr)
-	if err != nil {
-		log.Error("ResolveTCPAddr() error:", err)
-		return
-	}
-
-	r.ln, err = net.ListenTCP("tcp", addr)
+	ln, err := net.ListenTCP("tcp", r.localAddr)
 	if err != nil {
 		log.Error("Listen() error:", err)
 		return
 	}
-
+	r.ln = ln
 	for {
 		conn, err := r.ln.AcceptTCP()
 		if err != nil {
