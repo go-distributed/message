@@ -28,7 +28,7 @@ func TestBlockRecv(t *testing.T) {
 
 	// before the sender sends the message, Recv() should not return.
 	select {
-	case <-time.After(1 * time.Second):
+	case <-time.After(50 * time.Millisecond):
 	case <-c:
 		t.Fatal("Recv should block until sender sends message")
 	}
@@ -57,7 +57,7 @@ func TestNonBlockRecv(t *testing.T) {
 
 	// start sending
 	go send("8001", buf, t)
-	time.Sleep(1 * time.Second) // wait for socket to be available
+	time.Sleep(50 * time.Millisecond) // wait for socket to be available
 
 	outMsg = r.GoRecv()
 	if outMsg == nil {

@@ -36,3 +36,7 @@ func (m *Message) AttachReplyChan() bool {
 	}
 	return false
 }
+
+func (m *Message) RequireReply() bool {
+	return m.msgType > MsgRequireReply
+}
