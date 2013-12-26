@@ -18,7 +18,7 @@ func TestBlockRecv(t *testing.T) {
 	buf, inPb, msg := initMsg(t)
 
 	r := NewReceiver(":8000")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 
 	c := make(chan *Message)
@@ -44,7 +44,7 @@ func TestNonBlockRecv(t *testing.T) {
 
 	// start receiver
 	r := NewReceiver(":8001")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 
 	time.Sleep(50 * time.Millisecond) // wait for server to start
@@ -68,7 +68,7 @@ func TestNonBlockRecv(t *testing.T) {
 
 func TestSendTrash(t *testing.T) {
 	r := NewReceiver(":8002")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
 
@@ -91,25 +91,25 @@ func TestSendTrash(t *testing.T) {
 // Test whether receiver can stop and listen again
 func TestStopRestart(t *testing.T) {
 	r := NewReceiver(":8003")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
 
 	r.Stop()
-	r.Start()
+	r.GoStart()
 }
 
 // Test multiple stop
 func TestMultipleStop(t *testing.T) {
 	r := NewReceiver(":8004")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
 
 	for i := 0; i < 5; i++ {
 		r.Stop()
 	}
-	r.Start()
+	r.GoStart()
 }
 
 // Test multiple message
@@ -120,7 +120,7 @@ func TestMultipleMessage(t *testing.T) {
 	secBuf.WriteTo(buf) // write second message
 
 	r := NewReceiver(":8005")
-	r.Start()
+	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
 
@@ -237,7 +237,7 @@ func compareMsg(msg, outMsg *Message, a interface{}, t *testing.T) {
 
 func mockServer(addr string) {
 	r := NewReceiver(addr)
-	r.Start()
+	r.GoStart()
 
 	msg := r.Recv()
 	msg.reply <- NewMessage(0, append([]byte("a reply to "), msg.bytes...))

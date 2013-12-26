@@ -97,7 +97,7 @@ func newPreAcceptReply() *example.PreAcceptReply {
 func startServerNoSerialization() {
 	NoSerializationServerStarted = true
 	r := NewReceiver("localhost:8000")
-	r.Start()
+	r.GoStart()
 
 	// no serialization, just echo
 	go func() {
@@ -111,7 +111,7 @@ func startServerNoSerialization() {
 func startServerWithSerialization() {
 	WithSerializationServerStarted = true
 	r := NewReceiver("localhost:8001")
-	r.Start()
+	r.GoStart()
 
 	// with serialization
 	go func() {
