@@ -1,10 +1,10 @@
 package message
 
 import (
-	"testing"
-	"math/rand"
 	"log"
+	"math/rand"
 	"strconv"
+	"testing"
 
 	"code.google.com/p/gogoprotobuf/proto"
 	"github.com/go-epaxos/message/example"
@@ -13,12 +13,12 @@ import (
 var start = 0
 
 // Benchmark the Sender / Receiver without serialization (to be compared)
-func BenchmarkNoSerializedServer(b *testing.B) {
+func BenchmardNoSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
 	if start != 1 {
 		startServer(&start)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < 10; i++ {
@@ -31,12 +31,12 @@ func BenchmarkNoSerializedServer(b *testing.B) {
 }
 
 // Benchmark the Sender / Receiver with serialization
-func BenchmarkSerializedServer(b *testing.B) {
+func BenchmardWithSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
 	if start != 2 {
 		startServer(&start)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < 10; i++ {
@@ -87,17 +87,17 @@ func newPreAcceptReply() *example.PreAcceptReply {
 	for i := 0; i < v8; i++ {
 		this.CommittedDeps[i] = rand.Int31()
 	}
-	
+
 	return this
 }
 
 func startServer(start *int) {
 	*start = *start + 1
-	r := NewReceiver("localhost:"+strconv.Itoa(8000+*start))
+	r := NewReceiver("localhost:" + strconv.Itoa(8000+*start))
 	r.Start()
-	
+
 	// no serialization, just echo
-	if *start == 1 { 
+	if *start == 1 {
 		go func() {
 			for {
 				msg := r.Recv()
@@ -107,12 +107,12 @@ func startServer(start *int) {
 		return
 	}
 	// with serialization
-	if *start == 2 { 
+	if *start == 2 {
 		// the server's main loop
 		go func() {
 			for {
 				reply := newPreAcceptReply() // create a reply protobuf
-				rmsg := NewEmptyMessage() // create a reply message
+				rmsg := NewEmptyMessage()    // create a reply message
 				pa := new(example.PreAccept)
 				msg := r.Recv()
 				rmsg.msgType = msg.msgType
@@ -134,7 +134,7 @@ func startServer(start *int) {
 }
 
 func startClient(start int, done chan bool) {
-	s, err := NewSender("localhost:"+strconv.Itoa(8000+start))
+	s, err := NewSender("localhost:" + strconv.Itoa(8000+start))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -175,16 +175,3 @@ func startClient(start int, done chan bool) {
 	}
 	done <- true
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
