@@ -11,8 +11,8 @@ type Sender struct {
 	decoder    *MsgDecoder
 }
 
-func NewSender(remoteAddr string) (*Sender, error) {
-	raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
+func NewSender(raddrStr string) (*Sender, error) {
+	raddr, err := net.ResolveTCPAddr("tcp", raddrStr)
 	if err != nil {
 		return nil, err
 	}
