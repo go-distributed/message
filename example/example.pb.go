@@ -984,12 +984,10 @@ func NewPopulatedPreAccept(r randyExample, easy bool) *PreAccept {
 		this.Command[i] = byte(r.Intn(256))
 	}
 	this.Seq = r.Int31()
-	if r.Intn(10) != 0 {
-		v6 := r.Intn(100)
-		this.Deps = make([]int32, v6)
-		for i := 0; i < v6; i++ {
-			this.Deps[i] = r.Int31()
-		}
+	v6 := 5
+	this.Deps = make([]int32, v6)
+	for i := 0; i < v6; i++ {
+		this.Deps[i] = r.Int31()
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedExample(r, 8)
@@ -1004,19 +1002,15 @@ func NewPopulatedPreAcceptReply(r randyExample, easy bool) *PreAcceptReply {
 	this.OK = r.Uint32()
 	this.Ballot = r.Int31()
 	this.Seq = r.Int31()
-	if r.Intn(10) != 0 {
-		v7 := r.Intn(100)
-		this.Deps = make([]int32, v7)
-		for i := 0; i < v7; i++ {
-			this.Deps[i] = r.Int31()
-		}
+	v7 := 5
+	this.Deps = make([]int32, v7)
+	for i := 0; i < v7; i++ {
+		this.Deps[i] = r.Int31()
 	}
-	if r.Intn(10) != 0 {
-		v8 := r.Intn(100)
-		this.CommittedDeps = make([]int32, v8)
-		for i := 0; i < v8; i++ {
-			this.CommittedDeps[i] = r.Int31()
-		}
+	v8 := 5
+	this.CommittedDeps = make([]int32, v8)
+	for i := 0; i < v8; i++ {
+		this.CommittedDeps[i] = r.Int31()
 	}
 	if !easy && r.Intn(10) != 0 {
 		this.XXX_unrecognized = randUnrecognizedExample(r, 8)

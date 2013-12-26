@@ -3,26 +3,29 @@ package message
 import (
 	"log"
 	"math/rand"
-	"strconv"
 	"testing"
 
 	"code.google.com/p/gogoprotobuf/proto"
 	"github.com/go-epaxos/message/example"
 )
 
-var start = 0
+var (
+	// To control the server from starting multiple times
+	NoSerializationServerStarted   = false
+	WithSerializationServerStarted = false
+)
 
 // Benchmark the Sender / Receiver without serialization (to be compared)
-func BenchmardNoSerializetion(b *testing.B) {
+func BenchmarkNoSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
-	if start != 1 {
-		startServer(&start)
+	if !NoSerializationServerStarted {
+		startServerNoSerialization()
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < 10; i++ {
-			go startClient(start, done)
+			go startClientNoSerialization(done)
 		}
 		for i := 0; i < 10; i++ {
 			<-done
@@ -31,16 +34,16 @@ func BenchmardNoSerializetion(b *testing.B) {
 }
 
 // Benchmark the Sender / Receiver with serialization
-func BenchmardWithSerializetion(b *testing.B) {
+func BenchmarkWithSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
-	if start != 2 {
-		startServer(&start)
+	if !WithSerializationServerStarted {
+		startServerWithSerialization()
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < 10; i++ {
-			go startClient(start, done)
+			go startClientWithSerialization(done)
 		}
 		for i := 0; i < 10; i++ {
 			<-done
@@ -48,7 +51,7 @@ func BenchmardWithSerializetion(b *testing.B) {
 	}
 }
 
-// These two functions are copied from examplepb_test.go
+// These two functions are modified from example.pb.go
 // with a change to the size of Deps[] and CommittedDeps[]
 func newPreAccept() *example.PreAccept {
 	this := &example.PreAccept{}
@@ -91,86 +94,90 @@ func newPreAcceptReply() *example.PreAcceptReply {
 	return this
 }
 
-func startServer(start *int) {
-	*start = *start + 1
-	r := NewReceiver("localhost:" + strconv.Itoa(8000+*start))
+func startServerNoSerialization() {
+	NoSerializationServerStarted = true
+	r := NewReceiver("localhost:8000")
 	r.Start()
 
 	// no serialization, just echo
-	if *start == 1 {
-		go func() {
-			for {
-				msg := r.Recv()
-				msg.reply <- NewMessage(0, msg.Bytes())
-			}
-		}()
-		return
-	}
-	// with serialization
-	if *start == 2 {
-		// the server's main loop
-		go func() {
-			for {
-				reply := newPreAcceptReply() // create a reply protobuf
-				rmsg := NewEmptyMessage()    // create a reply message
-				pa := new(example.PreAccept)
-				msg := r.Recv()
-				rmsg.msgType = msg.msgType
-				// Unmarshal the message bytes
-				if err := proto.Unmarshal(msg.Bytes(), pa); err != nil {
-					log.Fatal(err)
-				}
-				// Marshal the reply message bytes
-				var err error
-				rmsg.bytes, err = proto.Marshal(reply)
-				if err != nil {
-					log.Fatal(err)
-				}
-				msg.reply <- rmsg
-			}
-		}()
-		return
-	}
+	go func() {
+		for {
+			msg := r.Recv()
+			msg.reply <- NewMessage(0, msg.Bytes())
+		}
+	}()
 }
 
-func startClient(start int, done chan bool) {
-	s, err := NewSender("localhost:" + strconv.Itoa(8000+start))
+func startServerWithSerialization() {
+	WithSerializationServerStarted = true
+	r := NewReceiver("localhost:8001")
+	r.Start()
+
+	// with serialization
+	go func() {
+		for {
+			reply := newPreAcceptReply() // create a reply protobuf
+			rmsg := NewEmptyMessage()    // create a reply message
+			pa := new(example.PreAccept)
+			msg := r.Recv()
+			rmsg.msgType = msg.msgType
+			// Unmarshal the message bytes
+			if err := proto.Unmarshal(msg.Bytes(), pa); err != nil {
+				log.Fatal(err)
+			}
+			// Marshal the reply message bytes
+			var err error
+			rmsg.bytes, err = proto.Marshal(reply)
+			if err != nil {
+				log.Fatal(err)
+			}
+			msg.reply <- rmsg
+		}
+	}()
+}
+
+func startClientNoSerialization(done chan bool) {
+	s, err := NewSender("localhost:8000")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for i := 0; i < 1000; i++ {
-		// no serialization
-		if start == 1 {
-			msg := NewMessage(MsgRequireReply+1, []byte("hello"))
-			reply, err := s.Send(msg)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if string(reply.Bytes()) != "hello" {
-				log.Fatal(err)
-			}
-			continue
+		msg := NewMessage(MsgRequireReply+1, []byte("hello"))
+		reply, err := s.Send(msg)
+		if err != nil {
+			log.Fatal(err)
 		}
-		// with serialization
-		if start == 2 {
-			msg := NewMessage(MsgRequireReply+1, nil)
-			pa := newPreAccept() // create a protobuf struct
-			pr := new(example.PreAcceptReply)
-			// Marshal to bytes
-			msg.bytes, err = proto.Marshal(pa)
-			if err != nil {
-				log.Fatal(err)
-			}
-			reply, err := s.Send(msg)
-			if err != nil {
-				log.Fatal(err)
-			}
-			//Unmarshl the reply bytes
-			if err := proto.Unmarshal(reply.Bytes(), pr); err != nil {
-				log.Fatal(err)
-			}
-			continue
+		if string(reply.Bytes()) != "hello" {
+			log.Fatal(err)
+		}
+	}
+	done <- true
+}
+
+func startClientWithSerialization(done chan bool) {
+	// with serialization
+	s, err := NewSender("localhost:8001")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 0; i < 1000; i++ {
+		msg := NewMessage(MsgRequireReply+1, nil)
+		pa := newPreAccept() // create a protobuf struct
+		pr := new(example.PreAcceptReply)
+		// Marshal to bytes
+		msg.bytes, err = proto.Marshal(pa)
+		if err != nil {
+			log.Fatal(err)
+		}
+		reply, err := s.Send(msg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		//Unmarshl the reply bytes
+		if err := proto.Unmarshal(reply.Bytes(), pr); err != nil {
+			log.Fatal(err)
 		}
 	}
 	done <- true
