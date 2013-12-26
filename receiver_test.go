@@ -213,7 +213,7 @@ func sendAndRecv(addr string, t *testing.T) {
 	reply := NewEmptyMessage()
 	d.Decode(reply)
 
-	if string(reply.Bytes()) != "a reply" {
+	if string(reply.Bytes()) != "a reply to a send" {
 		t.Fatal("error recv!")
 	}
 }
@@ -240,5 +240,5 @@ func mockServer(addr string) {
 	r.Start()
 
 	msg := r.Recv()
-	msg.reply <- NewMessage(0, []byte("a reply"))
+	msg.reply <- NewMessage(0, append([]byte("a reply to "), msg.bytes...))
 }

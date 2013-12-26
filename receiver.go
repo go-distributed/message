@@ -60,7 +60,7 @@ func (r *Receiver) Stop() error {
 	return nil
 }
 
-// start listen and receive messages
+// Start listen and receive messages
 func (r *Receiver) start() {
 	addr, err := net.ResolveTCPAddr("tcp", r.addr)
 	if err != nil {

@@ -24,7 +24,7 @@ func TestSend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(reply.Bytes()) != "a reply" {
+	if string(reply.Bytes()) != "a reply to a send" {
 		t.Fatal("error recv!")
 	}
 }
