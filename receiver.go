@@ -46,8 +46,8 @@ func (r *Receiver) GoRecv() *Message {
 	}
 }
 
-func (r *Receiver) Start() {
-	go r.start()
+func (r *Receiver) GoStart() {
+	go r.Start()
 }
 
 // Stop the receiver
@@ -60,8 +60,8 @@ func (r *Receiver) Stop() error {
 	return nil
 }
 
-// start listen and receive messages
-func (r *Receiver) start() {
+// Start listen and receive messages
+func (r *Receiver) Start() {
 	addr, err := net.ResolveTCPAddr("tcp", r.addr)
 	if err != nil {
 		log.Error("ResolveTCPAddr() error:", err)

@@ -42,21 +42,70 @@ option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 
 message A {
-        option (gogoproto.face) = true;
-        option (gogoproto.goproto_getters) = false;
-        optional string Description = 1 [(gogoproto.nullable) = false];
-        optional int64 Number = 2 [(gogoproto.nullable) = false];
-        optional bytes Id = 3 [(gogoproto.customtype) = "code.google.com/p/gogoprotobuf/test.Uuid", (gogoproto.nullable) = false];
+    option (gogoproto.face) = true;
+    option (gogoproto.goproto_getters) = false;
+    optional string Description = 1 [(gogoproto.nullable) = false];
+    optional int64 Number = 2 [(gogoproto.nullable) = false];
+    optional bytes Id = 3 [(gogoproto.customtype) = "code.google.com/p/gogoprotobuf/test.Uuid", (gogoproto.nullable) = false];
 }
 
 message B {
-        option (gogoproto.description) = true;
-        optional A A = 1 [(gogoproto.nullable) = false, (gogoproto.embed) = true];
-        repeated bytes G = 2 [(gogoproto.customtype) = "code.google.com/p/gogoprotobuf/test/custom.Uint128", (gogoproto.nullable) = false];
+    option (gogoproto.description) = true;
+    optional A A = 1 [(gogoproto.nullable) = false, (gogoproto.embed) = true];
+    repeated bytes G = 2 [(gogoproto.customtype) = "code.google.com/p/gogoprotobuf/test/custom.Uint128", (gogoproto.nullable) = false];
 }
 
 message U {
-        option (gogoproto.union) = true;
-        optional A A = 1;
-        optional B B = 2;
+    option (gogoproto.union) = true;
+    optional A A = 1;
+    optional B B = 2;
+}
+message PreAccept {
+    option (gogoproto.face) = true;
+    option (gogoproto.goproto_getters) = false;
+
+    /*
+      LeaderId int32
+      Replica int32
+      Instance int32
+      Ballot int32
+      Command []byte
+      Seq int32
+      Deps [5]int32
+    */
+    required int32 LeaderId = 1 [(gogoproto.nullable) = false];
+    optional int32 Replica = 2 [(gogoproto.nullable) = false];
+    optional int32 Instance = 3 [(gogoproto.nullable) = false];
+    optional int32 Ballot = 4 [(gogoproto.nullable) = false];
+    optional bytes Command = 5 [(gogoproto.nullable) = false];
+    optional int32 Seq = 6 [(gogoproto.nullable) = false];
+    repeated int32 Deps = 7 [(gogoproto.nullable) = false];
+    /*optional int32 Deps1 = 7 [(gogoproto.nullable) = false];
+    optional int32 Deps2 = 8 [(gogoproto.nullable) = false];
+    optional int32 Deps3 = 9 [(gogoproto.nullable) = false];
+    optional int32 Deps4 = 10 [(gogoproto.nullable) = false];
+    optional int32 Deps5 = 11 [(gogoproto.nullable) = false];*/
+    
+    /*optional int64 Deps1 = 7 [(gogoproto.nullable) = false];
+      optional int64 Deps2 = 8 [(gogoproto.nullable) = false];
+      optional int32 Deps3 = 9 [(gogoproto.nullable) = false];*/
+}
+
+message  PreAcceptReply {
+    /*
+      Replica int32
+      Instance int32
+      OK uint8
+      Ballot int32
+      Seq int32
+      Deps [5]int32
+      CommittedDeps [5]int32
+    */
+    required int32 Replica = 1 [(gogoproto.nullable) = false];
+    optional int32 Instance = 2 [(gogoproto.nullable) = false];
+    optional uint32 OK = 3 [(gogoproto.nullable) = false]; // since it's Varint, so uint32 and uint8 are actually equal
+    optional int32 Ballot = 4 [(gogoproto.nullable) = false];
+    optional int32 Seq = 5 [(gogoproto.nullable) = false];
+    repeated int32 Deps = 6 [packed=true, (gogoproto.nullable) = false];
+    repeated int32 CommittedDeps = 7 [(gogoproto.nullable) = false];
 }
