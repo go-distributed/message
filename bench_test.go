@@ -11,14 +11,14 @@ import (
 
 var (
 	// To control the server from starting multiple times
-	NoSerializationServerStarted   = false
-	WithSerializationServerStarted = false
+	noSerializationServerStarted   = false
+	withSerializationServerStarted = false
 )
 
 // Benchmark the Sender / Receiver without serialization (to be compared)
 func BenchmarkNoSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
-	if !NoSerializationServerStarted {
+	if !noSerializationServerStarted {
 		startServerNoSerialization()
 	}
 
@@ -36,7 +36,7 @@ func BenchmarkNoSerializetion(b *testing.B) {
 // Benchmark the Sender / Receiver with serialization
 func BenchmarkWithSerializetion(b *testing.B) {
 	done := make(chan bool, 10)
-	if !WithSerializationServerStarted {
+	if !withSerializationServerStarted {
 		startServerWithSerialization()
 	}
 
@@ -95,7 +95,7 @@ func newPreAcceptReply() *example.PreAcceptReply {
 }
 
 func startServerNoSerialization() {
-	NoSerializationServerStarted = true
+	noSerializationServerStarted = true
 	r := NewReceiver("localhost:8000")
 	r.GoStart()
 
@@ -109,7 +109,7 @@ func startServerNoSerialization() {
 }
 
 func startServerWithSerialization() {
-	WithSerializationServerStarted = true
+	withSerializationServerStarted = true
 	r := NewReceiver("localhost:8001")
 	r.GoStart()
 
