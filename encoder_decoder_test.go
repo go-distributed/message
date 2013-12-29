@@ -86,7 +86,7 @@ func TestPbEncoderAndDecoder(t *testing.T) {
 		t.Fatal("Messages are not equal!")
 	}
 
-	if !reflect.DeepEqual(msg.pb, inPb) {
+	if !reflect.DeepEqual(inPb, outMsg.pb) {
 		t.Fatal("Protos are not equal!")
 	}
 }
