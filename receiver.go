@@ -51,6 +51,17 @@ func (r *Receiver) GoRecv() *Message {
 	}
 }
 
+// Send a message to a local receiver
+func SendTo(r *Receiver, m *Message) *Message {
+	attached := m.AttachReplyChan()
+	r.ch <- m
+	if attached {
+		reply := <-m.reply
+		return reply
+	}
+	return nil
+}
+
 func (r *Receiver) GoStart() {
 	go r.Start()
 }
