@@ -157,6 +157,24 @@ func TestSendAndReply(t *testing.T) {
 	sendAndRecv(addr, t)
 }
 
+// Test send out a message to a local receiver and wait for reply
+func TestSendTo(t *testing.T) {
+	r := NewReceiver(":8007")
+	r.GoStart()
+
+	go func() {
+		msg := r.Recv()
+		msg.reply <- NewMessage(0, append([]byte("a reply to "), msg.bytes...))
+	}()
+
+	m := NewMessage(MsgRequireReply+1, []byte("a send"))
+	reply := SendTo(r, m)
+
+	if string(reply.Bytes()) != "a reply to a send" {
+		t.Fatal("recv error")
+	}
+}
+
 func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
 	buf := new(bytes.Buffer)
 	inPb := &example.A{
