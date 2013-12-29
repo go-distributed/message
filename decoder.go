@@ -45,6 +45,9 @@ func (md *MsgDecoder) DecodePb(m *PbMessage) error {
 
 	bytes := make([]byte, size)
 	_, err = io.ReadFull(md.br, bytes)
+	if err != nil {
+		return err
+	}
 
 	return proto.Unmarshal(bytes, m.pb)
 }
