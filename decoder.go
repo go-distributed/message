@@ -31,9 +31,13 @@ func (md *MsgDecoder) DecodePb(m *PbMessage) error {
 	t, ok := registry[m.msgType]
 
 	if !ok {
-		panic("unknown type")
+		panic("unknown type") // TODO error handle
 	}
 
+	/*
+	 * since reflect.New() returns a pointer type,
+	 * so m.pb's underlying type is actually a pointer
+	 */
 	v := reflect.New(t)
 	m.pb = v.Interface().(proto.Message)
 
@@ -44,9 +48,13 @@ func (md *MsgDecoder) DecodePb(m *PbMessage) error {
 	}
 
 	bytes := make([]byte, size)
-	_, err = io.ReadFull(md.br, bytes)
+	n, err := io.ReadFull(md.br, bytes)
 	if err != nil {
 		return err
+	}
+	if n == 0 {
+		m.pb = nil
+		return nil
 	}
 
 	return proto.Unmarshal(bytes, m.pb)

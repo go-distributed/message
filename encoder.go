@@ -24,12 +24,15 @@ func (me *MsgEncoder) EncodePb(m *PbMessage) error {
 		return err
 	}
 
-	bytes, err := proto.Marshal(m.pb)
-	if err != nil {
-		return err
+	var bytes []byte
+	if m.pb != nil {
+		bytes, err = proto.Marshal(m.pb)
+		if err != nil {
+			return err
+		}
 	}
-
 	size := len(bytes)
+
 	err = binary.Write(me.bw, binary.LittleEndian, uint32(size))
 
 	if err != nil {

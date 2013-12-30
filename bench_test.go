@@ -53,7 +53,7 @@ func BenchmarkWithSerializetion(b *testing.B) {
 
 // These two functions are modified from example.pb.go
 // with a change to the size of Deps[] and CommittedDeps[]
-func newPreAccept() *example.PreAccept {
+func NewPreAcceptSample() *example.PreAccept {
 	this := &example.PreAccept{}
 	this.LeaderId = rand.Int31()
 	this.Replica = rand.Int31()
@@ -73,7 +73,7 @@ func newPreAccept() *example.PreAccept {
 	return this
 }
 
-func newPreAcceptReply() *example.PreAcceptReply {
+func NewPreAcceptReplySample() *example.PreAcceptReply {
 	this := &example.PreAcceptReply{}
 	this.Replica = rand.Int31()
 	this.Instance = rand.Int31()
@@ -116,8 +116,8 @@ func startServerWithSerialization() {
 	// with serialization
 	go func() {
 		for {
-			reply := newPreAcceptReply() // create a reply protobuf
-			rmsg := NewEmptyMessage()    // create a reply message
+			reply := NewPreAcceptReplySample() // create a reply protobuf
+			rmsg := NewEmptyMessage()          // create a reply message
 			pa := new(example.PreAccept)
 			msg := r.Recv()
 			rmsg.msgType = msg.msgType
@@ -164,7 +164,7 @@ func startClientWithSerialization(done chan bool) {
 
 	for i := 0; i < 1000; i++ {
 		msg := NewMessage(MsgRequireReply+1, nil)
-		pa := newPreAccept() // create a protobuf struct
+		pa := NewPreAcceptSample() // create a protobuf struct
 		pr := new(example.PreAcceptReply)
 		// Marshal to bytes
 		msg.bytes, err = proto.Marshal(pa)

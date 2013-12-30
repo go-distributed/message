@@ -97,6 +97,7 @@ func TestStopRestart(t *testing.T) {
 
 	r.Stop()
 	r.GoStart()
+	time.Sleep(50 * time.Millisecond) // prevent running r.Stop() before r.GoStart()
 }
 
 // Test multiple stop
@@ -110,6 +111,7 @@ func TestMultipleStop(t *testing.T) {
 		r.Stop()
 	}
 	r.GoStart()
+	time.Sleep(50 * time.Millisecond) // prevent running r.Stop() before r.GoStart()
 }
 
 // Test multiple message
