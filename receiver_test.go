@@ -66,6 +66,67 @@ func TestNonBlockRecv(t *testing.T) {
 	compareMsg(msg, outMsg, inPb, t)
 }
 
+func TestPbBlockRecv(t *testing.T) {
+	sp := NewPreAcceptSample()
+	r := NewPbReceiver(":8000")
+	register(0, reflect.TypeOf(example.PreAccept{}))
+	r.GoStart()
+	defer r.Stop()
+
+	c := make(chan *PbMessage)
+	go func() {
+		c <- r.Recv()
+	}()
+
+	// before the sender sends the message, Recv() should not return.
+	select {
+	case <-time.After(50 * time.Millisecond):
+	case <-c:
+		t.Fatal("Recv should block until sender sends message")
+	}
+
+	// start sending
+	sender, err := NewPbSender(":8000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inMsg := NewPbMessage(0, sp)
+	go sender.Send(inMsg)
+	outMsg := <-c
+	comparePbMsg(inMsg, outMsg, t)
+}
+
+func TestPbNonBlockRecv(t *testing.T) {
+	sp := NewPreAcceptSample()
+	r := NewPbReceiver(":8001")
+	register(0, reflect.TypeOf(example.PreAccept{}))
+	r.GoStart()
+	defer r.Stop()
+
+	time.Sleep(50 * time.Millisecond) // wait for server to start
+
+	// should not receive anything
+	outMsg := r.GoRecv()
+	if outMsg != nil {
+		t.Fatal("GoRecv() return not nil")
+	}
+
+	// start sending
+	sender, err := NewPbSender(":8001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inMsg := NewPbMessage(0, sp)
+	go sender.Send(inMsg)
+	time.Sleep(50 * time.Millisecond) // wait for socket to be available
+
+	outMsg = r.GoRecv()
+	if outMsg == nil {
+		t.Fatal("nil")
+	}
+	comparePbMsg(inMsg, outMsg, t)
+}
+
 func TestSendTrash(t *testing.T) {
 	r := NewReceiver(":8002")
 	r.GoStart()
@@ -86,6 +147,25 @@ func TestSendTrash(t *testing.T) {
 	if r.GoRecv() != nil {
 		t.Fatal("Should not receive anything!")
 	}
+}
+
+func TestSendPbNil(t *testing.T) {
+	r := NewPbReceiver(":8002")
+	register(0, reflect.TypeOf(example.PreAccept{}))
+	r.GoStart()
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
+
+	sender, err := NewPbSender(":8002")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inMsg := NewPbMessage(0, nil)
+	go sender.Send(inMsg)
+	time.Sleep(50 * time.Millisecond) // wait for GoRecv
+
+	out := r.GoRecv()
+	comparePbMsg(out, inMsg, t)
 }
 
 // Test whether receiver can stop and listen again
@@ -255,6 +335,15 @@ func compareMsg(msg, outMsg *Message, a interface{}, t *testing.T) {
 	}
 }
 
+func comparePbMsg(msg, outMsg *PbMessage, t *testing.T) {
+	if !reflect.DeepEqual(msg, outMsg) {
+		t.Fatal("Messages are not equal!")
+	}
+	if !reflect.DeepEqual(msg.pb, outMsg.pb) {
+		t.Fatal("pb of the meessages are not equal!")
+	}
+}
+
 func mockServer(addr string) {
 	r := NewReceiver(addr)
 	r.GoStart()
@@ -271,13 +360,3 @@ func mockPbServer(addr string) {
 	msg := r.Recv()
 	msg.reply <- NewPbMessage(msg.Type(), msg.Proto())
 }
-
-
-
-
-
-
-
-
-
-

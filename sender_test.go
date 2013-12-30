@@ -1,9 +1,9 @@
 package message
 
 import (
+	"reflect"
 	"testing"
 	"time"
-	"reflect"
 
 	"github.com/go-epaxos/message/example"
 )
@@ -47,7 +47,7 @@ func TestSendPb(t *testing.T) {
 	// send out a message which need reply
 	ex := &example.A{
 		Description: "hello",
-		Number: 42,
+		Number:      42,
 	}
 	msg := NewPbMessage(MsgRequireReply+1, ex)
 	reply, err := sender.Send(msg)
@@ -59,20 +59,3 @@ func TestSendPb(t *testing.T) {
 		t.Fatal("error recv!, result not equal")
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
