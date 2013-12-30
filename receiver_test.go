@@ -262,3 +262,22 @@ func mockServer(addr string) {
 	msg := r.Recv()
 	msg.reply <- NewMessage(0, append([]byte("a reply to "), msg.bytes...))
 }
+
+func mockPbServer(addr string) {
+	r := NewPbReceiver(addr)
+	register(MsgRequireReply+1, reflect.TypeOf(example.A{}))
+	r.GoStart()
+
+	msg := r.Recv()
+	msg.reply <- NewPbMessage(msg.Type(), msg.Proto())
+}
+
+
+
+
+
+
+
+
+
+
