@@ -26,7 +26,7 @@ func NewReceiver(addrStr string) *Receiver {
 	r := new(Receiver)
 	addr, err := net.ResolveTCPAddr("tcp", addrStr)
 	if err != nil {
-		log.Error("ResolveTCPAddr() error:", err)
+		log.Error("ResolveTCPAddr() error: ", err)
 		return nil
 	}
 	r.localAddr = addr
@@ -80,7 +80,7 @@ func (r *Receiver) Stop() error {
 func (r *Receiver) Start() {
 	ln, err := net.ListenTCP("tcp", r.localAddr)
 	if err != nil {
-		log.Error("Listen() error:", err)
+		log.Error("Listen() error: ", err)
 		return
 	}
 	r.ln = ln
@@ -90,7 +90,7 @@ func (r *Receiver) Start() {
 			if r.stop {
 				return
 			}
-			log.Warning("Accept() error:", err)
+			log.Warning("Accept() error: ", err)
 			// TODO: is it a temp error?
 			// need to check!
 			continue
@@ -115,7 +115,7 @@ func (r *Receiver) handleConn(conn net.Conn) {
 				return
 			}
 			// TODO: handle error
-			log.Warning("handleConn() error:", err)
+			log.Warning("handleConn() error: ", err)
 			return
 		}
 
@@ -133,7 +133,7 @@ func (r *Receiver) handleConn(conn net.Conn) {
 						return
 					}
 					// TODO: handle error
-					log.Warning("handleConn() error:", err)
+					log.Warning("handleConn() error: ", err)
 				}
 			}
 		}
