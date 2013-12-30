@@ -34,27 +34,22 @@ func (md *MsgDecoder) DecodePb(m *PbMessage) error {
 		panic("unknown type") // TODO error handle
 	}
 
-	/*
-	 * since reflect.New() returns a pointer type,
-	 * so m.pb's underlying type is actually a pointer
-	 */
+	// since reflect.New() returns a pointer type,
+	// so m.pb's underlying type is actually a pointer
 	v := reflect.New(t)
 	m.pb = v.Interface().(proto.Message)
 
 	var size uint32
 	err = binary.Read(md.br, binary.LittleEndian, &size)
-	if err != nil {
+	if size == 0 || err != nil { // no need to read and unmarshal
+		m.pb = nil
 		return err
 	}
 
 	bytes := make([]byte, size)
-	n, err := io.ReadFull(md.br, bytes)
+	_, err = io.ReadFull(md.br, bytes)
 	if err != nil {
 		return err
-	}
-	if n == 0 {
-		m.pb = nil
-		return nil
 	}
 
 	return proto.Unmarshal(bytes, m.pb)
