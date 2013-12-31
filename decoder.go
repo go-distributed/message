@@ -10,12 +10,14 @@ import (
 )
 
 type MsgDecoder struct {
-	br *bufio.Reader
+	br   *bufio.Reader
+	pbuf *proto.Buffer
 }
 
 func NewMsgDecoder(r io.Reader) *MsgDecoder {
 	return &MsgDecoder{
-		br: bufio.NewReader(r),
+		br:   bufio.NewReader(r),
+		pbuf: proto.NewBuffer(nil),
 	}
 }
 
@@ -52,7 +54,8 @@ func (md *MsgDecoder) DecodePb(m *PbMessage) error {
 		return err
 	}
 
-	return proto.Unmarshal(bytes, m.pb)
+	md.pbuf.SetBuf(bytes)
+	return md.pbuf.Unmarshal(m.pb)
 }
 
 func (md *MsgDecoder) Decode(m *Message) error {

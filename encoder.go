@@ -9,12 +9,14 @@ import (
 )
 
 type MsgEncoder struct {
-	bw *bufio.Writer
+	bw   *bufio.Writer
+	pbuf *proto.Buffer
 }
 
 func NewMsgEncoder(w io.Writer) *MsgEncoder {
 	return &MsgEncoder{
-		bw: bufio.NewWriter(w),
+		bw:   bufio.NewWriter(w),
+		pbuf: proto.NewBuffer(nil),
 	}
 }
 
@@ -26,10 +28,12 @@ func (me *MsgEncoder) EncodePb(m *PbMessage) error {
 
 	var bytes []byte
 	if m.pb != nil {
-		bytes, err = proto.Marshal(m.pb)
+		me.pbuf.Reset()
+		err = me.pbuf.Marshal(m.pb)
 		if err != nil {
 			return err
 		}
+		bytes = me.pbuf.Bytes()
 	}
 	size := len(bytes)
 
