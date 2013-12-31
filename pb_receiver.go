@@ -8,41 +8,37 @@ import (
 	"github.com/coreos/go-log/log"
 )
 
-const (
-	chanBufSize = 10 // buffer size for message channel, default = 10
-)
-
 // Receiver struct
-type Receiver struct {
+type PbReceiver struct {
 	localAddr    *net.TCPAddr     // address
 	ln           *net.TCPListener // only TCP now
-	ch           chan *Message    // message channel
+	ch           chan *PbMessage  // message channel
 	stop         bool             // stop?
 	replyTimeout time.Duration
 }
 
 // Constructor
-func NewReceiver(addrStr string) *Receiver {
-	r := new(Receiver)
+func NewPbReceiver(addrStr string) *PbReceiver {
+	r := new(PbReceiver)
 	addr, err := net.ResolveTCPAddr("tcp", addrStr)
 	if err != nil {
 		log.Error("ResolveTCPAddr() error: ", err)
 		return nil
 	}
 	r.localAddr = addr
-	r.ch = make(chan *Message, chanBufSize)
+	r.ch = make(chan *PbMessage, chanBufSize)
 	// TODO: this should be configurable
 	r.replyTimeout = time.Millisecond * 50
 	return r
 }
 
 // Recv() will blocking until there is message
-func (r *Receiver) Recv() *Message {
+func (r *PbReceiver) Recv() *PbMessage {
 	return <-r.ch
 }
 
 // GoRecv() will return message if possible, or nil if no message
-func (r *Receiver) GoRecv() *Message {
+func (r *PbReceiver) GoRecv() *PbMessage {
 	select {
 	case m := <-r.ch:
 		return m
@@ -52,7 +48,7 @@ func (r *Receiver) GoRecv() *Message {
 }
 
 // Send a message to a local receiver
-func SendTo(r *Receiver, m *Message) *Message {
+func PbSendTo(r *PbReceiver, m *PbMessage) *PbMessage {
 	attached := m.AttachReplyChan()
 	r.ch <- m
 	if attached {
@@ -62,12 +58,12 @@ func SendTo(r *Receiver, m *Message) *Message {
 	return nil
 }
 
-func (r *Receiver) GoStart() {
+func (r *PbReceiver) GoStart() {
 	go r.Start()
 }
 
 // Stop the receiver
-func (r *Receiver) Stop() error {
+func (r *PbReceiver) Stop() error {
 	r.stop = true
 	err := r.ln.Close()
 	if err != nil {
@@ -77,7 +73,7 @@ func (r *Receiver) Stop() error {
 }
 
 // Start listen and receive messages
-func (r *Receiver) Start() {
+func (r *PbReceiver) Start() {
 	ln, err := net.ListenTCP("tcp", r.localAddr)
 	if err != nil {
 		log.Error("Listen() error: ", err)
@@ -101,15 +97,15 @@ func (r *Receiver) Start() {
 
 // handleConn handles incoming connections
 // It decodes a message from TCP stream and sends it to channel
-func (r *Receiver) handleConn(conn net.Conn) {
+func (r *PbReceiver) handleConn(conn net.Conn) {
 	d := NewMsgDecoder(conn)
 	e := NewMsgEncoder(conn)
 
 	for {
 		// create an empty message with reply channel
-		msg := NewEmptyMessage()
+		msg := NewEmptyPbMessage()
 
-		err := d.Decode(msg)
+		err := d.DecodePb(msg)
 		if err != nil {
 			if err == io.EOF {
 				return
@@ -128,7 +124,7 @@ func (r *Receiver) handleConn(conn net.Conn) {
 			// wait for reply
 			replyMsg := <-msg.reply
 			if replyMsg != nil {
-				if err := e.Encode(replyMsg); err != nil {
+				if err := e.EncodePb(replyMsg); err != nil {
 					if err == io.EOF {
 						return
 					}
