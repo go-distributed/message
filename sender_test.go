@@ -33,6 +33,7 @@ func TestSend(t *testing.T) {
 }
 
 func TestSendPb(t *testing.T) {
+	register(MsgRequireReply+1, reflect.TypeOf(example.A{}))
 	addr := ":9001"
 	go mockPbServer(addr)
 

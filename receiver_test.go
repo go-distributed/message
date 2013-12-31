@@ -67,9 +67,9 @@ func TestNonBlockRecv(t *testing.T) {
 }
 
 func TestPbBlockRecv(t *testing.T) {
+	register(0, reflect.TypeOf(example.PreAccept{}))
 	sp := NewPreAcceptSample()
 	r := NewPbReceiver(":8000")
-	register(0, reflect.TypeOf(example.PreAccept{}))
 	r.GoStart()
 	defer r.Stop()
 
@@ -97,9 +97,9 @@ func TestPbBlockRecv(t *testing.T) {
 }
 
 func TestPbNonBlockRecv(t *testing.T) {
+	register(0, reflect.TypeOf(example.PreAccept{}))
 	sp := NewPreAcceptSample()
 	r := NewPbReceiver(":8001")
-	register(0, reflect.TypeOf(example.PreAccept{}))
 	r.GoStart()
 	defer r.Stop()
 
@@ -150,8 +150,8 @@ func TestSendTrash(t *testing.T) {
 }
 
 func TestSendPbNil(t *testing.T) {
-	r := NewPbReceiver(":8002")
 	register(0, reflect.TypeOf(example.PreAccept{}))
+	r := NewPbReceiver(":8002")
 	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
@@ -183,6 +183,32 @@ func TestStopRestart(t *testing.T) {
 // Test multiple stop
 func TestMultipleStop(t *testing.T) {
 	r := NewReceiver(":8004")
+	r.GoStart()
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
+
+	for i := 0; i < 5; i++ {
+		r.Stop()
+	}
+	r.GoStart()
+	time.Sleep(50 * time.Millisecond) // prevent running r.Stop() before r.GoStart()
+}
+
+// Test whether receiver can stop and listen again for PbReceiver
+func TestPbStopRestart(t *testing.T) {
+	r := NewPbReceiver(":8003")
+	r.GoStart()
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
+
+	r.Stop()
+	r.GoStart()
+	time.Sleep(50 * time.Millisecond) // prevent running r.Stop() before r.GoStart()
+}
+
+// Test multiple stop for PbReceiver
+func TestPbMultipleStop(t *testing.T) {
+	r := NewPbReceiver(":8004")
 	r.GoStart()
 	defer r.Stop()
 	time.Sleep(50 * time.Millisecond)
@@ -228,10 +254,50 @@ func TestMultipleMessage(t *testing.T) {
 	}
 }
 
+// Test multiple pbmessage
+func TestMultiplePbMessage(t *testing.T) {
+	register(0, reflect.TypeOf(example.PreAccept{}))
+	cnt := 3 // number of messages
+	finish := make(chan bool)
+
+	// start receiver
+	r := NewPbReceiver(":8005")
+	r.GoStart()
+	defer r.Stop()
+	time.Sleep(50 * time.Millisecond)
+
+	// start sending
+	sender, err := NewPbSender(":8005")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sp := NewPreAcceptSample()
+	inMsg := NewPbMessage(0, sp)
+	for i := 0; i < cnt; i++ {
+		sender.Send(inMsg)
+	}
+	// test correctness
+	go func() {
+		for i := 0; i < cnt; i++ {
+			outMsg := r.Recv()
+			comparePbMsg(inMsg, outMsg, t)
+		}
+		finish <- true
+	}()
+	// test timeout
+	for {
+		select {
+		case <-finish:
+			return
+		case <-time.After(5 * time.Second):
+			t.Fatal("Did not receive two pbmessages!")
+		}
+	}
+}
+
 // Test send out a message and wait for reply
 func TestSendAndReply(t *testing.T) {
 	addr := ":8006"
-
 	go mockServer(addr)
 
 	// wait for server to start
@@ -243,6 +309,7 @@ func TestSendAndReply(t *testing.T) {
 func TestSendTo(t *testing.T) {
 	r := NewReceiver(":8007")
 	r.GoStart()
+	defer r.Stop()
 
 	go func() {
 		msg := r.Recv()
@@ -255,6 +322,25 @@ func TestSendTo(t *testing.T) {
 	if string(reply.Bytes()) != "a reply to a send" {
 		t.Fatal("recv error")
 	}
+}
+
+// Test send out a pbmessage to a local receiver and wait for reply
+func TestPbSendTo(t *testing.T) {
+	register(MsgRequireReply+1, reflect.TypeOf(example.PreAccept{}))
+	r := NewPbReceiver(":8007")
+	r.GoStart()
+	defer r.Stop()
+
+	sp := NewPreAcceptSample()
+	m := NewPbMessage(MsgRequireReply+1, sp)
+	go func() {
+		msg := r.Recv()
+		msg.reply <- msg
+	}()
+
+	reply := PbSendTo(r, m)
+
+	comparePbMsg(m, reply, t)
 }
 
 func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
@@ -353,8 +439,8 @@ func mockServer(addr string) {
 }
 
 func mockPbServer(addr string) {
-	r := NewPbReceiver(addr)
 	register(MsgRequireReply+1, reflect.TypeOf(example.A{}))
+	r := NewPbReceiver(addr)
 	r.GoStart()
 
 	msg := r.Recv()
