@@ -15,7 +15,7 @@ import (
 // TestBlockRecv tests blocking receive.
 // The Recv() function should block until receive a message from a sender.
 func TestBlockRecv(t *testing.T) {
-	buf, inPb, msg := initMsg(t)
+	buf, msg := initMsg(t)
 
 	r := NewReceiver(":8000")
 	r.GoStart()
@@ -36,11 +36,11 @@ func TestBlockRecv(t *testing.T) {
 	// start sending
 	go send("8000", buf, t)
 	outMsg := <-c
-	compareMsg(msg, outMsg, inPb, t)
+	compareMsg(msg, outMsg, t)
 }
 
 func TestNonBlockRecv(t *testing.T) {
-	buf, inPb, msg := initMsg(t)
+	buf, msg := initMsg(t)
 
 	// start receiver
 	r := NewReceiver(":8001")
@@ -63,7 +63,7 @@ func TestNonBlockRecv(t *testing.T) {
 	if outMsg == nil {
 		t.Fatal("nil")
 	}
-	compareMsg(msg, outMsg, inPb, t)
+	compareMsg(msg, outMsg, t)
 }
 
 func TestPbBlockRecv(t *testing.T) {
@@ -93,7 +93,7 @@ func TestPbBlockRecv(t *testing.T) {
 	inMsg := NewPbMessage(0, sp)
 	go sender.Send(inMsg)
 	outMsg := <-c
-	comparePbMsg(inMsg, outMsg, t)
+	compareMsg(inMsg, outMsg, t)
 }
 
 func TestPbNonBlockRecv(t *testing.T) {
@@ -124,7 +124,7 @@ func TestPbNonBlockRecv(t *testing.T) {
 	if outMsg == nil {
 		t.Fatal("nil")
 	}
-	comparePbMsg(inMsg, outMsg, t)
+	compareMsg(inMsg, outMsg, t)
 }
 
 func TestSendTrash(t *testing.T) {
@@ -165,7 +165,7 @@ func TestSendPbNil(t *testing.T) {
 	time.Sleep(50 * time.Millisecond) // wait for GoRecv
 
 	out := r.GoRecv()
-	comparePbMsg(out, inMsg, t)
+	compareMsg(out, inMsg, t)
 }
 
 // Test whether receiver can stop and listen again
@@ -223,8 +223,8 @@ func TestPbMultipleStop(t *testing.T) {
 // Test multiple message
 func TestMultipleMessage(t *testing.T) {
 	finish := make(chan bool)
-	buf, inPb, msg := initMsg(t)
-	secBuf, _, _ := initMsg(t)
+	buf, msg := initMsg(t)
+	secBuf, _ := initMsg(t)
 	secBuf.WriteTo(buf) // write second message
 
 	r := NewReceiver(":8005")
@@ -239,7 +239,7 @@ func TestMultipleMessage(t *testing.T) {
 	go func() {
 		for i := 0; i < 2; i++ {
 			outMsg := r.Recv()
-			compareMsg(msg, outMsg, inPb, t)
+			compareMsg(msg, outMsg, t)
 		}
 		finish <- true
 	}()
@@ -280,7 +280,7 @@ func TestMultiplePbMessage(t *testing.T) {
 	go func() {
 		for i := 0; i < cnt; i++ {
 			outMsg := r.Recv()
-			comparePbMsg(inMsg, outMsg, t)
+			compareMsg(inMsg, outMsg, t)
 		}
 		finish <- true
 	}()
@@ -340,10 +340,10 @@ func TestPbSendTo(t *testing.T) {
 
 	reply := PbSendTo(r, m)
 
-	comparePbMsg(m, reply, t)
+	compareMsg(m, reply, t)
 }
 
-func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
+func initMsg(t *testing.T) (*bytes.Buffer, *Message) {
 	buf := new(bytes.Buffer)
 	inPb := &example.A{
 		Description: "hello world!",
@@ -363,7 +363,7 @@ func initMsg(t *testing.T) (*bytes.Buffer, *example.A, *Message) {
 	e := NewMsgEncoder(buf)
 	e.Encode(msg)
 
-	return buf, inPb, msg
+	return buf, msg
 }
 
 func send(port string, buf *bytes.Buffer, t *testing.T) {
@@ -404,30 +404,11 @@ func sendAndRecv(addr string, t *testing.T) {
 	}
 }
 
-func compareMsg(msg, outMsg *Message, a interface{}, t *testing.T) {
+func compareMsg(msg, outMsg interface{}, t *testing.T) {
 	if !reflect.DeepEqual(msg, outMsg) {
 		t.Fatal("Messages are not equal!")
 	}
 
-	switch reflect.TypeOf(a).String() {
-	case "*example.A":
-		outPb := new(example.A)
-		proto.Unmarshal(outMsg.bytes, outPb)
-		if !reflect.DeepEqual(outPb, outPb) {
-			t.Fatal("Protos are not equal!")
-		}
-	default:
-		t.Fatal("Unknow type")
-	}
-}
-
-func comparePbMsg(msg, outMsg *PbMessage, t *testing.T) {
-	if !reflect.DeepEqual(msg, outMsg) {
-		t.Fatal("Messages are not equal!")
-	}
-	if !reflect.DeepEqual(msg.pb, outMsg.pb) {
-		t.Fatal("pb of the meessages are not equal!")
-	}
 }
 
 func mockServer(addr string) {
